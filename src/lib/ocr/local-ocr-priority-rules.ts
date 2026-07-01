@@ -1,7 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { getLocalDataDirectory } from "@/lib/local-data-path";
 
-const localDataDirectory = path.join(process.cwd(), ".local-data");
+const localDataDirectory = getLocalDataDirectory();
 const priorityRulesFilePath = path.join(localDataDirectory, "ocr-priority-rules.json");
 
 export const defaultOcrPriorityRules: Record<string, number> = {

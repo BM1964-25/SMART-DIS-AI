@@ -117,13 +117,17 @@ export function UploadWorkspace({ initialDocuments, initialErrorMessage }: Uploa
   }, []);
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[0.95fr_1.25fr]">
-      <UploadForm onUploadComplete={refreshDocuments} />
-      <DocumentTable
-        documents={documentsState.documents}
-        isLoading={documentsState.status === "loading"}
-        errorMessage={documentsState.status === "error" ? documentsState.message : undefined}
-      />
+    <section className="grid items-start gap-6 2xl:grid-cols-[420px_minmax(0,1fr)]">
+      <div className="min-w-0">
+        <UploadForm onUploadComplete={refreshDocuments} />
+      </div>
+      <div className="min-w-0">
+        <DocumentTable
+          documents={documentsState.documents}
+          isLoading={documentsState.status === "loading"}
+          errorMessage={documentsState.status === "error" ? documentsState.message : undefined}
+        />
+      </div>
     </section>
   );
 }

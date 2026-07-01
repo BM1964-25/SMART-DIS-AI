@@ -91,65 +91,67 @@ export default async function UploadPage({ searchParams }: UploadPageProps) {
         </div>
       ) : null}
 
-      <section className="rounded-lg border border-border bg-surface p-5 shadow-subtle">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Ordnerwissen aufbauen</h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Analysiert die verbundenen lokalen Dateien, extrahiert Text und erzeugt erste Hinweise
-              zu Risiken und Fristen.
-            </p>
-          </div>
-          <form action="/api/documents/local-analysis" method="post">
-            <button
-              type="submit"
-              className="inline-flex h-11 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:brightness-95"
-            >
-              Lokale Dokumente analysieren
-            </button>
-          </form>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border bg-surface p-5 shadow-subtle">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Dateisicherung</h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Sichert den lokalen SMART DIS-AI Dokumentindex inklusive Analyseergebnissen. Die
-              Originaldateien in verknüpften Ordnern werden nicht kopiert.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-            <a
-              href="/api/documents/local-backup"
-              className="inline-flex h-11 items-center justify-center rounded-md border border-border bg-white px-4 text-sm font-medium text-foreground transition hover:bg-muted"
-            >
-              Sicherung herunterladen
-            </a>
-            <form
-              action="/api/documents/local-backup"
-              method="post"
-              encType="multipart/form-data"
-              className="flex flex-col gap-2 sm:flex-row sm:items-center"
-            >
-              <input
-                name="backup"
-                accept="application/json,.json"
-                className="h-11 rounded-md border border-border bg-white px-3 py-2 text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
-                type="file"
-                required
-              />
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-lg border border-border bg-surface p-5 shadow-subtle">
+          <div className="flex h-full flex-col justify-between gap-5">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Ordnerwissen aufbauen</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Analysiert verbundene lokale Dateien, extrahiert Text und erzeugt erste Hinweise zu
+                Risiken und Fristen.
+              </p>
+            </div>
+            <form action="/api/documents/local-analysis" method="post">
               <button
                 type="submit"
-                className="inline-flex h-11 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:brightness-95"
+                className="inline-flex h-11 w-full items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:brightness-95 sm:w-auto"
               >
-                Sicherung hochladen
+                Lokale Dokumente analysieren
               </button>
             </form>
           </div>
-        </div>
+        </article>
+
+        <article className="rounded-lg border border-border bg-surface p-5 shadow-subtle">
+          <div className="flex h-full flex-col justify-between gap-5">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Dateisicherung</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Sichert den lokalen Dokumentindex inklusive Analyseergebnissen. Originaldateien in
+                verknüpften Ordnern werden nicht kopiert.
+              </p>
+            </div>
+            <div className="grid gap-3 xl:grid-cols-[auto_1fr]">
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a
+                href="/api/documents/local-backup"
+                className="inline-flex h-11 items-center justify-center rounded-md border border-border bg-white px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+              >
+                Sicherung herunterladen
+              </a>
+              <form
+                action="/api/documents/local-backup"
+                method="post"
+                encType="multipart/form-data"
+                className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+              >
+                <input
+                  name="backup"
+                  accept="application/json,.json"
+                  className="h-11 min-w-0 rounded-md border border-border bg-white px-3 py-2 text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
+                  type="file"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="inline-flex h-11 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:brightness-95"
+                >
+                  Sicherung hochladen
+                </button>
+              </form>
+            </div>
+          </div>
+        </article>
       </section>
 
       <UploadWorkspace

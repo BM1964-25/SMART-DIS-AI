@@ -16,8 +16,9 @@ import {
   maxUploadSizeInBytes
 } from "@/domain/security";
 import { evaluateTextQuality } from "@/lib/analysis/text-quality";
+import { getLocalDataDirectory } from "@/lib/local-data-path";
 
-const localDataDirectory = path.join(process.cwd(), ".local-data");
+const localDataDirectory = getLocalDataDirectory();
 const uploadsDirectory = path.join(localDataDirectory, "uploads");
 const documentsFilePath = path.join(localDataDirectory, "documents.json");
 const linkedFoldersFilePath = path.join(localDataDirectory, "linked-folders.json");

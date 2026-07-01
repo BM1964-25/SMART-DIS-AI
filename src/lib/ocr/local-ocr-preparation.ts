@@ -3,8 +3,9 @@ import path from "node:path";
 import type { OcrJobRecord, OcrJobStatus } from "@/domain/ocr";
 import { evaluateTextQuality } from "@/lib/analysis/text-quality";
 import { getLocalDocumentDetail } from "@/lib/documents/local-document-store";
+import { getLocalDataDirectory } from "@/lib/local-data-path";
 
-const localDataDirectory = path.join(process.cwd(), ".local-data");
+const localDataDirectory = getLocalDataDirectory();
 const ocrJobsFilePath = path.join(localDataDirectory, "ocr-jobs.json");
 
 async function ensureLocalDataDirectory() {
