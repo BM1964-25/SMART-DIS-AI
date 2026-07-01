@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { searchLocalDocumentChunks } from "@/lib/search/local-semantic-search";
 import { searchDocumentChunks } from "@/lib/search/semantic-search";
-import { getServerEnv } from "@/lib/server-env";
+import { tryGetServerEnv } from "@/lib/server-env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -31,14 +32,6 @@ function jsonError(message: string, status: number) {
 }
 
 export async function POST(request: Request) {
-  let env;
-
-  try {
-    env = getServerEnv();
-  } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Supabase is not configured.", 503);
-  }
-
   const body = (await request.json().catch(() => ({}))) as SearchRequest;
   const query = typeof body.query === "string" ? body.query.trim() : "";
 
@@ -50,10 +43,30 @@ export async function POST(request: Request) {
     return jsonError("Die Suchanfrage ist zu lang.", 400);
   }
 
+  const optionalEnv = tryGetServerEnv();
+
+  if (!optionalEnv) {
+    const results = await searchLocalDocumentChunks({
+      query,
+      matchCount: 8
+    }).catch((error) => {
+      throw new Error(
+        `Lokale Suche fehlgeschlagen: ${
+          error instanceof Error ? error.message : "Unbekannter Fehler"
+        }`
+      );
+    });
+
+    return NextResponse.json<SearchResponse>({
+      query,
+      results
+    });
+  }
+
   const supabase = createSupabaseAdminClient();
   const results = await searchDocumentChunks({
     query,
-    organizationId: env.BUILTSMART_BOOTSTRAP_ORGANIZATION_ID,
+    organizationId: optionalEnv.BUILTSMART_BOOTSTRAP_ORGANIZATION_ID,
     matchCount: 8,
     supabase
   }).catch((error) => {

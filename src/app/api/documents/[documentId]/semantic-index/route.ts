@@ -42,6 +42,24 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   const supabase = createSupabaseAdminClient();
+  const documentResult = await supabase
+    .from("documents")
+    .select("status")
+    .eq("organization_id", env.BUILTSMART_BOOTSTRAP_ORGANIZATION_ID)
+    .eq("id", documentId)
+    .single();
+
+  if (documentResult.error) {
+    return jsonError(`Dokument konnte nicht geladen werden: ${documentResult.error.message}`, 404);
+  }
+
+  if (documentResult.data.status === "needs_ocr") {
+    return jsonError(
+      "Semantische Indexierung ist für dieses Dokument nicht belastbar, weil zuerst OCR erforderlich ist.",
+      409
+    );
+  }
+
   const extractionResult = await supabase
     .from("document_extractions")
     .select("document_id,organization_id,extracted_text")

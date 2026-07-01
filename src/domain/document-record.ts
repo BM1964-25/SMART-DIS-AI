@@ -1,3 +1,5 @@
+export type AnalysisQuality = "none" | "needs_ocr" | "basic" | "medium" | "good";
+
 export type DocumentRecord = {
   id: string;
   title: string;
@@ -8,6 +10,16 @@ export type DocumentRecord = {
   status: string;
   storagePath: string;
   createdAt: string;
+  sourceKind?: "upload" | "linked_folder";
+  sourceStatus?: "available" | "missing";
+  sourceCheckedAt?: string | null;
+  localFilePath?: string;
+  analysisQuality?: AnalysisQuality;
+  analysisTextLength?: number;
+  analysisReadableRatio?: number;
+  analysisBrokenCharRatio?: number;
+  riskCount?: number;
+  deadlineCount?: number;
 };
 
 export type DocumentExtractionRecord = {
@@ -16,9 +28,18 @@ export type DocumentExtractionRecord = {
   summary: string | null;
   extractedText: string | null;
   classifiedDocumentType: string | null;
+  classifiedDocumentTypeConfidence?: number | null;
+  classifiedDocumentTypeReason?: string | null;
   confidence: number | null;
   analysisModel: string | null;
   promptVersion: string | null;
+  ocrPages?: Array<{
+    page: number;
+    textLength: number;
+    readableRatio: number;
+    brokenCharRatio: number;
+    quality: AnalysisQuality;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -110,6 +131,8 @@ type ExtractionRow = {
   summary: string | null;
   extracted_text: string | null;
   classified_document_type: string | null;
+  classified_document_type_confidence?: number | null;
+  classified_document_type_reason?: string | null;
   confidence: number | null;
   analysis_model: string | null;
   prompt_version: string | null;
@@ -124,6 +147,8 @@ export function mapExtractionRow(row: ExtractionRow): DocumentExtractionRecord {
     summary: row.summary,
     extractedText: row.extracted_text,
     classifiedDocumentType: row.classified_document_type,
+    classifiedDocumentTypeConfidence: row.classified_document_type_confidence ?? null,
+    classifiedDocumentTypeReason: row.classified_document_type_reason ?? null,
     confidence: row.confidence,
     analysisModel: row.analysis_model,
     promptVersion: row.prompt_version,

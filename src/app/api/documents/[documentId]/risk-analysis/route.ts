@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { analyzeRisks, riskAnalysisPromptMetadata } from "@/lib/analysis/openai-risk-analysis";
-import { getOpenAiApiKey, getServerEnv } from "@/lib/server-env";
+import { analyzeLocalDocument, analyzeLocalRisks } from "@/lib/analysis/local-document-analysis";
+import {
+  getLocalDocumentDetail,
+  updateLocalDocumentFindings
+} from "@/lib/documents/local-document-store";
+import { getOpenAiApiKey, getServerEnv, tryGetServerEnv } from "@/lib/server-env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -33,6 +38,45 @@ function formatContractContext(contractAnalysis: Record<string, unknown> | null)
 }
 
 export async function POST(_request: Request, context: RouteContext) {
+  const params = (await context.params) as { documentId?: string };
+  const documentId = params.documentId;
+
+  if (!documentId) {
+    return jsonError("Document id is required.", 400);
+  }
+
+  const optionalEnv = tryGetServerEnv();
+
+  if (!optionalEnv) {
+    let document = await getLocalDocumentDetail(documentId);
+
+    if (!document) {
+      return jsonError("Dokument wurde lokal nicht gefunden.", 404);
+    }
+
+    if (!document.extraction) {
+      await analyzeLocalDocument(documentId);
+      document = await getLocalDocumentDetail(documentId);
+    }
+
+    if (document?.status === "needs_ocr" || document?.analysisQuality === "needs_ocr") {
+      return jsonError(
+        "Risikoanalyse ist für dieses Dokument nicht belastbar, weil zuerst OCR erforderlich ist.",
+        409
+      );
+    }
+
+    const extractedText = document?.extraction?.extractedText ?? "";
+    const risks = analyzeLocalRisks(documentId, `${document?.fileName ?? ""}\n${extractedText}`);
+    await updateLocalDocumentFindings(documentId, { risks });
+
+    return NextResponse.json<RiskAnalysisResponse>({
+      documentId,
+      riskCount: risks.length,
+      maxRiskScore: Math.max(0, ...risks.map((risk) => risk.riskScore ?? 0))
+    });
+  }
+
   let env;
 
   try {
@@ -41,14 +85,25 @@ export async function POST(_request: Request, context: RouteContext) {
     return jsonError(error instanceof Error ? error.message : "Supabase is not configured.", 503);
   }
 
-  const params = (await context.params) as { documentId?: string };
-  const documentId = params.documentId;
+  const supabase = createSupabaseAdminClient();
 
-  if (!documentId) {
-    return jsonError("Document id is required.", 400);
+  const documentResult = await supabase
+    .from("documents")
+    .select("status")
+    .eq("organization_id", env.BUILTSMART_BOOTSTRAP_ORGANIZATION_ID)
+    .eq("id", documentId)
+    .single();
+
+  if (documentResult.error) {
+    return jsonError(`Dokument konnte nicht geladen werden: ${documentResult.error.message}`, 404);
   }
 
-  const supabase = createSupabaseAdminClient();
+  if (documentResult.data.status === "needs_ocr") {
+    return jsonError(
+      "Risikoanalyse ist für dieses Dokument nicht belastbar, weil zuerst OCR erforderlich ist.",
+      409
+    );
+  }
 
   const extractionResult = await supabase
     .from("document_extractions")

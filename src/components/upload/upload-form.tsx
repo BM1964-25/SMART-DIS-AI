@@ -1,8 +1,33 @@
 "use client";
 
-import { CheckCircle2, FileText, Loader2, RefreshCcw, UploadCloud, X, XCircle } from "lucide-react";
-import { useId, useMemo, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
-import { allowedMimeTypes, maxFilesPerUpload, maxUploadSizeInBytes } from "@/domain/security";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  FolderOpen,
+  Loader2,
+  RefreshCcw,
+  UploadCloud,
+  X,
+  XCircle
+} from "lucide-react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  useCallback,
+  type ChangeEvent,
+  type DragEvent,
+  type FormEvent
+} from "react";
+import {
+  allowedAcceptValue,
+  allowedFileExtensionText,
+  allowedMimeTypes,
+  maxFilesPerUpload,
+  maxUploadSizeInBytes
+} from "@/domain/security";
 
 type UploadFormProps = {
   onUploadComplete: () => void | Promise<void>;
@@ -19,17 +44,87 @@ type UploadFailure = {
   error: string;
 };
 
-const allowedAcceptValue = Object.keys(allowedMimeTypes).join(",");
+type LinkedFolder = {
+  path: string;
+  connectedAt: string;
+  lastSyncedAt: string;
+  importedCount: number;
+  skippedCount: number;
+};
+
+type SyncDocumentEntry = {
+  id: string;
+  title: string;
+  fileName: string;
+  filePath: string;
+};
+
+type SyncSkippedFile = {
+  folderPath: string;
+  filePath: string;
+  reason: string;
+};
+
+type SyncSourceEntry = {
+  documentId: string;
+  title: string;
+  fileName: string;
+  filePath: string;
+};
+
+type FolderSyncState =
+  | { status: "idle"; folders: LinkedFolder[] }
+  | { status: "loading"; folders: LinkedFolder[] }
+  | { status: "syncing"; folders: LinkedFolder[] }
+  | {
+      status: "success";
+      folders: LinkedFolder[];
+      importedCount: number;
+      skippedCount: number;
+      failedCount: number;
+      importedDocuments: SyncDocumentEntry[];
+      skippedFiles: SyncSkippedFile[];
+      missingSources: SyncSourceEntry[];
+      restoredSources: SyncSourceEntry[];
+      isAutomatic: boolean;
+    }
+  | { status: "error"; folders: LinkedFolder[]; message: string };
+
 const allowedMimeTypeSet = new Set(Object.keys(allowedMimeTypes));
+
+async function fetchLinkedFolders() {
+  const response = await fetch("/api/documents/local-folder/sync", { cache: "no-store" });
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      typeof payload.error === "string"
+        ? payload.error
+        : "Verbundene Ordner konnten nicht geladen werden."
+    );
+  }
+
+  return Array.isArray(payload.folders) ? (payload.folders as LinkedFolder[]) : [];
+}
 
 function formatBytes(bytes: number) {
   const megabytes = bytes / 1024 / 1024;
   return `${megabytes.toFixed(megabytes >= 10 ? 0 : 1)} MB`;
 }
 
+function getFileNameFromPath(filePath: string) {
+  return filePath.split("/").pop() ?? filePath;
+}
+
 function getFileValidationError(file: File) {
   if (!allowedMimeTypeSet.has(file.type)) {
-    return "Nur PDF, DOCX und TXT sind erlaubt.";
+    const fileExtension = file.name.toLowerCase().split(".").pop() ?? "";
+
+    if (!file.type && ["pdf", "docx", "txt", "xlsx", "xls", "csv"].includes(fileExtension)) {
+      return null;
+    }
+
+    return `Nur ${allowedFileExtensionText} sind erlaubt.`;
   }
 
   if (file.size <= 0) {
@@ -37,7 +132,7 @@ function getFileValidationError(file: File) {
   }
 
   if (file.size > maxUploadSizeInBytes) {
-    return "Die Datei ist groesser als 25 MB.";
+    return "Die Datei ist größer als 25 MB.";
   }
 
   return null;
@@ -50,7 +145,11 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
   const [title, setTitle] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" });
-
+  const [folderSyncState, setFolderSyncState] = useState<FolderSyncState>({
+    status: "idle",
+    folders: []
+  });
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const fileErrors = useMemo(
     () =>
       selectedFiles
@@ -65,6 +164,97 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
     setSelectedFiles(nextFiles);
     setUploadState({ status: "idle" });
   }
+
+  const syncLinkedFolders = useCallback(
+    async ({ isAutomatic = false }: { isAutomatic?: boolean } = {}) => {
+      setFolderSyncState((current) => ({ status: "syncing", folders: current.folders }));
+
+      try {
+        const response = await fetch("/api/documents/local-folder/sync", {
+          method: "POST"
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          setFolderSyncState((current) => ({
+            status: "error",
+            folders: current.folders,
+            message:
+              typeof payload.error === "string"
+                ? payload.error
+                : "Ordner konnten nicht synchronisiert werden."
+          }));
+          return;
+        }
+
+        setFolderSyncState({
+          status: "success",
+          folders: Array.isArray(payload.folders) ? payload.folders : [],
+          importedCount: typeof payload.importedCount === "number" ? payload.importedCount : 0,
+          skippedCount: typeof payload.skippedCount === "number" ? payload.skippedCount : 0,
+          failedCount: Array.isArray(payload.failed) ? payload.failed.length : 0,
+          importedDocuments: Array.isArray(payload.importedDocuments)
+            ? payload.importedDocuments
+            : [],
+          skippedFiles: Array.isArray(payload.skippedFiles) ? payload.skippedFiles : [],
+          missingSources: Array.isArray(payload.missingSources) ? payload.missingSources : [],
+          restoredSources: Array.isArray(payload.restoredSources) ? payload.restoredSources : [],
+          isAutomatic
+        });
+        await onUploadComplete();
+      } catch {
+        setFolderSyncState((current) => ({
+          status: "error",
+          folders: current.folders,
+          message: "Ordner konnten nicht synchronisiert werden."
+        }));
+      }
+    },
+    [onUploadComplete]
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadInitialLinkedFolders() {
+      try {
+        const folders = await fetchLinkedFolders();
+
+        if (isMounted) {
+          setFolderSyncState({ status: "idle", folders });
+        }
+      } catch (error) {
+        if (isMounted) {
+          setFolderSyncState({
+            status: "error",
+            folders: [],
+            message:
+              error instanceof Error
+                ? error.message
+                : "Verbundene Ordner konnten nicht geladen werden."
+          });
+        }
+      }
+    }
+
+    void loadInitialLinkedFolders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!autoSyncEnabled || folderSyncState.folders.length === 0) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void syncLinkedFolders({ isAutomatic: true });
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [autoSyncEnabled, folderSyncState.folders.length, syncLinkedFolders]);
 
   function removeFile(fileToRemove: File) {
     setSelectedFiles((files) => files.filter((file) => file !== fileToRemove));
@@ -100,14 +290,14 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
     event.preventDefault();
 
     if (selectedFiles.length === 0) {
-      setUploadState({ status: "error", message: "Bitte waehle mindestens eine Datei aus." });
+      setUploadState({ status: "error", message: "Bitte wähle mindestens eine Datei aus." });
       return;
     }
 
     if (fileErrors.length > 0) {
       setUploadState({
         status: "error",
-        message: "Bitte entferne ungueltige Dateien vor dem Upload."
+        message: "Bitte entferne ungültige Dateien vor dem Upload."
       });
       return;
     }
@@ -154,21 +344,18 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
       onSubmit={handleSubmit}
       className="rounded-lg border border-border bg-surface p-6 shadow-subtle"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div>
         <div>
           <h2 className="text-lg font-semibold text-foreground">Dateien hochladen</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Drag & Drop oder Dateiauswahl fuer bis zu {maxFilesPerUpload} Dokumente.
+            Drag & Drop oder Dateiauswahl für bis zu {maxFilesPerUpload} Dokumente.
           </p>
         </div>
-        <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-          PDF · DOCX · TXT
-        </span>
       </div>
 
       <div className="mt-5">
         <label htmlFor={titleId} className="text-sm font-medium text-foreground">
-          Titel fuer Einzelupload
+          Titel für Einzelupload
         </label>
         <input
           id={titleId}
@@ -201,10 +388,13 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
         >
           <UploadCloud className="h-9 w-9 text-primary" aria-hidden="true" />
           <span className="mt-3 text-sm font-semibold text-foreground">
-            Dateien hier ablegen oder auswaehlen
+            Dateien hier ablegen oder auswählen
           </span>
           <span className="mt-1 text-xs text-muted-foreground">
             Maximal {formatBytes(maxUploadSizeInBytes)} pro Datei
+          </span>
+          <span className="mt-4 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+            PDF · DOCX · TXT · XLSX · XLS · CSV
           </span>
         </label>
         <input
@@ -216,6 +406,131 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
           multiple
           type="file"
         />
+      </div>
+
+      <div className="mt-5 rounded-lg border border-border bg-muted/40 p-4">
+        <p className="text-sm font-medium text-foreground">Lokalen Ordner verbinden</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Die Dateien werden nicht hochgeladen oder kopiert. Die App speichert den Ordnerpfad und
+          liest ihn bei „Synchronisieren“ erneut ein. Neu abgelegte Dateien werden dann
+          berücksichtigt.
+        </p>
+        {folderSyncState.folders.length > 0 ? (
+          <div className="mt-3 space-y-2">
+            {folderSyncState.folders.map((folder) => (
+              <div
+                key={folder.path}
+                className="rounded-md border border-border bg-white p-3 text-xs text-muted-foreground"
+              >
+                <p className="break-all font-medium text-foreground">{folder.path}</p>
+                <p className="mt-1">
+                  Letzter Sync: {new Date(folder.lastSyncedAt).toLocaleString("de-DE")}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <a
+            href="/local-folder"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium text-foreground transition hover:bg-surface sm:w-auto"
+          >
+            <FolderOpen className="h-4 w-4" aria-hidden="true" />
+            Ordnerbrowser öffnen
+          </a>
+          <button
+            type="button"
+            onClick={() => void syncLinkedFolders()}
+            disabled={folderSyncState.status === "syncing" || folderSyncState.folders.length === 0}
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-foreground px-3 text-sm font-medium text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {folderSyncState.status === "syncing" ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+            )}
+            Verbundene Ordner synchronisieren
+          </button>
+        </div>
+        <label className="mt-3 flex items-start gap-3 rounded-md border border-border bg-white p-3 text-xs text-muted-foreground">
+          <input
+            checked={autoSyncEnabled}
+            onChange={(event) => setAutoSyncEnabled(event.target.checked)}
+            disabled={folderSyncState.folders.length === 0}
+            className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+            type="checkbox"
+          />
+          <span>
+            <span className="block font-medium text-foreground">Auto-Sync alle 60 Sekunden</span>
+            <span>
+              Berücksichtigt neu abgelegte Dateien, solange diese Upload-Seite geöffnet bleibt.
+            </span>
+          </span>
+        </label>
+        {folderSyncState.status === "success" ? (
+          <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
+            <p className="font-medium">
+              {folderSyncState.isAutomatic ? "Auto-Sync" : "Sync"} abgeschlossen:{" "}
+              {folderSyncState.importedCount} neue Dateien verbunden, {folderSyncState.skippedCount}{" "}
+              übersprungen
+              {folderSyncState.failedCount > 0 ? `, ${folderSyncState.failedCount} Fehler` : ""}.
+            </p>
+            {folderSyncState.importedDocuments.length > 0 ? (
+              <div className="mt-2">
+                <p className="font-medium">Neu verbunden</p>
+                <ul className="mt-1 space-y-1">
+                  {folderSyncState.importedDocuments.slice(0, 5).map((document) => (
+                    <li key={document.id} className="break-all">
+                      {document.fileName}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {folderSyncState.skippedFiles.length > 0 ? (
+              <div className="mt-2">
+                <p className="font-medium">Übersprungen</p>
+                <ul className="mt-1 space-y-1">
+                  {folderSyncState.skippedFiles.slice(0, 5).map((file) => (
+                    <li key={`${file.filePath}-${file.reason}`} className="break-all">
+                      {getFileNameFromPath(file.filePath)}: {file.reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {folderSyncState.restoredSources.length > 0 ? (
+              <div className="mt-2">
+                <p className="font-medium">Quellen wieder verfügbar</p>
+                <ul className="mt-1 space-y-1">
+                  {folderSyncState.restoredSources.slice(0, 5).map((source) => (
+                    <li key={source.documentId} className="break-all">
+                      {source.fileName}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {folderSyncState.missingSources.length > 0 ? (
+              <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-amber-800">
+                <p className="flex items-center gap-2 font-medium">
+                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                  Lokale Quellen fehlen
+                </p>
+                <ul className="mt-1 space-y-1">
+                  {folderSyncState.missingSources.slice(0, 5).map((source) => (
+                    <li key={source.documentId} className="break-all">
+                      {source.fileName}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {folderSyncState.status === "error" ? (
+          <p className="mt-3 text-xs leading-5 text-red-700">{folderSyncState.message}</p>
+        ) : null}
       </div>
 
       {selectedFiles.length > 0 ? (
@@ -263,9 +578,7 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
         ) : (
           <UploadCloud className="h-4 w-4" aria-hidden="true" />
         )}
-        {selectedFiles.length > 1
-          ? `${selectedFiles.length} Dokumente hochladen`
-          : "Dokument hochladen"}
+        {selectedFiles.length > 1 ? `${selectedFiles.length} Dateien hochladen` : "Datei hochladen"}
       </button>
 
       {uploadState.status === "success" ? (
@@ -297,17 +610,13 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => {
-          setSelectedFiles([]);
-          setUploadState({ status: "idle" });
-        }}
+      <a
+        href="/upload"
         className="mt-4 inline-flex h-9 items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
       >
         <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-        Auswahl zuruecksetzen
-      </button>
+        Auswahl zurücksetzen
+      </a>
     </form>
   );
 }

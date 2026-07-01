@@ -25,6 +25,9 @@ MVP:
 - PDF
 - DOCX
 - TXT
+- XLSX
+- XLS
+- CSV
 
 Later:
 
@@ -95,6 +98,7 @@ supabase/migrations/003_document_analysis.sql
 supabase/migrations/004_contract_analysis.sql
 supabase/migrations/005_risk_analysis_score.sql
 supabase/migrations/006_semantic_search.sql
+supabase/migrations/007_spreadsheet_uploads.sql
 ```
 
 The migrations include organization-scoped Row Level Security, document metadata, analysis jobs, risks, deadlines, `pgvector` chunks, a private `documents` storage bucket and a bootstrap organization for the first upload workflow.
@@ -119,15 +123,19 @@ http://localhost:3000/upload
 
 The first upload workflow:
 
-1. Accepts PDF, DOCX and TXT.
+1. Accepts PDF, DOCX, TXT, XLSX, XLS and CSV.
 2. Supports drag & drop.
 3. Supports up to 10 files per upload.
 4. Validates MIME type, extension and size.
-5. Stores each file in private Supabase Storage.
-6. Creates a `documents` database record with status `uploaded`.
+5. Stores each file in the active storage backend.
+6. Creates a document metadata record with status `uploaded`.
 7. Shows uploaded documents in a table.
 
 Text extraction starts in the next development step.
+
+Without Supabase environment variables, local development uses `.local-data/uploads` and `.local-data/documents.json`. This local data directory is ignored by Git.
+
+For local development, the upload page can also connect a local folder by path. This does not upload or copy the files. It registers supported files as linked local sources so the app can read them from the original folder during local analysis.
 
 ## Document Analysis
 

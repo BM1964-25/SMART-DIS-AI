@@ -4,7 +4,7 @@ import { CalendarClock, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/section-header";
 
-type DeadlineOverviewRecord = {
+export type DeadlineOverviewRecord = {
   id: string;
   documentId: string;
   documentTitle: string;
@@ -16,7 +16,7 @@ type DeadlineOverviewRecord = {
   confidence: number | null;
 };
 
-type DeadlineOverviewData = {
+export type DeadlineOverviewData = {
   deadlines: DeadlineOverviewRecord[];
   totalCount: number;
   overdueCount: number;
@@ -47,7 +47,7 @@ function urgencyLabel(value: string) {
   const days = daysUntil(value);
 
   if (days < 0) {
-    return `${Math.abs(days)} Tage ueberfaellig`;
+    return `${Math.abs(days)} Tage überfällig`;
   }
 
   if (days === 0) {
@@ -57,8 +57,10 @@ function urgencyLabel(value: string) {
   return `in ${days} Tagen`;
 }
 
-export function DeadlineOverview() {
-  const [state, setState] = useState<DeadlineState>({ status: "loading" });
+export function DeadlineOverview({ initialData }: { initialData?: DeadlineOverviewData }) {
+  const [state, setState] = useState<DeadlineState>(
+    initialData ? { status: "ready", data: initialData } : { status: "loading" }
+  );
 
   useEffect(() => {
     let ignore = false;
@@ -121,8 +123,8 @@ export function DeadlineOverview() {
       <section className="rounded-lg border border-border bg-surface px-6 py-7 shadow-subtle md:px-8">
         <SectionHeader
           eyebrow="Fristen"
-          title="Fristenuebersicht"
-          description="Kuendigungsfristen, Vertragsenden, Zahlungsfristen und Projekttermine aus analysierten Dokumenten."
+          title="Fristenübersicht"
+          description="Kündigungsfristen, Vertragsenden, Zahlungsfristen und Projekttermine aus analysierten Dokumenten."
         />
       </section>
 

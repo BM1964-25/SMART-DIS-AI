@@ -7,7 +7,8 @@ import {
   mapRiskRow,
   type DocumentDetailRecord
 } from "@/domain/document-record";
-import { getServerEnv } from "@/lib/server-env";
+import { getLocalDocumentDetail } from "@/lib/documents/local-document-store";
+import { tryGetServerEnv } from "@/lib/server-env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -29,19 +30,25 @@ function jsonError(message: string, status: number) {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
-  let env;
-
-  try {
-    env = getServerEnv();
-  } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Supabase is not configured.", 503);
-  }
-
   const params = (await context.params) as { documentId?: string };
   const documentId = params.documentId;
 
   if (!documentId) {
     return jsonError("Document id is required.", 400);
+  }
+
+  const env = tryGetServerEnv();
+
+  if (!env) {
+    const document = await getLocalDocumentDetail(documentId);
+
+    if (!document) {
+      return jsonError("Dokument wurde lokal nicht gefunden.", 404);
+    }
+
+    return NextResponse.json<DocumentDetailResponse>({
+      document
+    });
   }
 
   const supabase = createSupabaseAdminClient();
@@ -60,7 +67,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const extractionResult = await supabase
     .from("document_extractions")
     .select(
-      "id,document_id,summary,extracted_text,classified_document_type,confidence,analysis_model,prompt_version,created_at,updated_at"
+      "id,document_id,summary,extracted_text,classified_document_type,classified_document_type_confidence,classified_document_type_reason,confidence,analysis_model,prompt_version,created_at,updated_at"
     )
     .eq("organization_id", env.BUILTSMART_BOOTSTRAP_ORGANIZATION_ID)
     .eq("document_id", documentId)

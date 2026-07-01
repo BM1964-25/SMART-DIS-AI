@@ -1,79 +1,45 @@
-import {
-  ArrowUpRight,
-  Bot,
-  CalendarClock,
-  CheckCircle2,
-  Database,
-  FileText,
-  ShieldAlert,
-  UploadCloud
-} from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Database, FileText, UploadCloud } from "lucide-react";
 import Link from "next/link";
-import { MetricCard } from "@/components/dashboard/metric-card";
+import { GuidedQuestionActions } from "@/components/dashboard/guided-question-actions";
+import { DashboardMetrics } from "@/components/dashboard/dashboard-metrics";
 import { RiskDashboard } from "@/components/dashboard/risk-dashboard";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { analysisPipelineSteps, documentTypeLabels, supportedFileTypes } from "@/domain/documents";
 
-const metrics = [
-  {
-    label: "Dokumente",
-    value: "0",
-    detail: "Upload-Modul als nächster Schritt",
-    icon: FileText
-  },
-  {
-    label: "Offene Risiken",
-    value: "0",
-    detail: "Analyse-Pipeline noch nicht aktiv",
-    icon: ShieldAlert
-  },
-  {
-    label: "Erkannte Fristen",
-    value: "0",
-    detail: "Fristenerkennung vorbereitet",
-    icon: CalendarClock
-  },
-  {
-    label: "Chat-Sessions",
-    value: "0",
-    detail: "RAG-Chat folgt nach Indexierung",
-    icon: Bot
-  }
-];
-
 const modules = [
   {
     title: "Upload",
-    description: "PDF, DOCX und TXT mit Größen-, MIME- und Organisationsvalidierung.",
-    status: "Vorbereitet"
+    description: "PDF, DOCX, TXT, XLSX, XLS und CSV lokal oder per Upload registrieren.",
+    status: "Aktiv"
   },
   {
     title: "Text Extraction",
-    description: "Serverseitige Extraktion als separater Schritt vor jeder KI-Auswertung.",
-    status: "Geplant"
+    description: "Lokale Textextraktion mit OCR-Qualitätsprüfung und Tesseract-Fallback.",
+    status: "Aktiv"
   },
   {
     title: "Klassifizierung",
     description:
-      "Einordnung in Verträge, Angebote, Rechnungen, Protokolle, Richtlinien oder Sonstige.",
-    status: "Geplant"
+      "Regelbasierte Einordnung inklusive Confidence und Begründung für Bau- und Unternehmensdokumente.",
+    status: "Aktiv"
   },
   {
     title: "Risiken & Fristen",
     description:
-      "Strukturierte Ergebnisse mit Quelle, Schweregrad, Datum, Confidence und Review-Status.",
-    status: "Geplant"
+      "Strukturierte Ergebnisse mit Quelle, Schweregrad, Datum, Confidence und Vorbereitungshinweisen.",
+    status: "Aktiv"
   },
   {
-    title: "Chunking & Embeddings",
-    description: "Dokumentabschnitte werden für semantische Suche in pgvector indexiert.",
-    status: "Vorbereitet"
+    title: "Semantische Suche",
+    description: "Lokaler Vektor-Retrieval-Fallback und später pgvector für Supabase-Betrieb.",
+    status: "Aktiv"
   },
   {
     title: "RAG Chat",
-    description: "Quellenbasierte Antworten ausschließlich aus autorisierten Dokument-Chunks.",
-    status: "Geplant"
+    description:
+      "Quellenbasierte Antworten aus indexierten lokalen Dokumenten, ohne OCR-Bedarfsfälle.",
+    status: "Aktiv"
   }
 ];
 
@@ -104,11 +70,9 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <MetricCard key={metric.label} {...metric} />
-        ))}
-      </section>
+      <DashboardMetrics />
+
+      <GuidedQuestionActions />
 
       <RiskDashboard />
 
@@ -127,7 +91,7 @@ export default function DashboardPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="text-sm font-semibold text-foreground">{module.title}</h3>
-                  <StatusBadge tone={module.status === "Vorbereitet" ? "success" : "neutral"}>
+                  <StatusBadge tone={module.status === "Aktiv" ? "success" : "neutral"}>
                     {module.status}
                   </StatusBadge>
                 </div>
@@ -141,7 +105,7 @@ export default function DashboardPage() {
           <SectionHeader
             eyebrow="Datenmodell"
             title="MVP Umfang"
-            description="Der nächste Implementierungsschritt kann direkt auf dem Supabase-Schema aufsetzen."
+            description="Aktuell lokal nutzbar, mit derselben fachlichen Struktur für den späteren Supabase-Betrieb."
           />
           <div className="mt-6 rounded-lg border border-border p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -192,7 +156,7 @@ export default function DashboardPage() {
                 <span className="text-xs font-semibold text-muted-foreground">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                {index === 0 || index === 8 ? (
+                {index <= 10 ? (
                   <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
                 ) : null}
               </div>

@@ -60,3 +60,38 @@ select {
   color: hsl(var(--primary-foreground));
   background: hsl(var(--primary));
 }
+
+@media (min-width: 1024px) {
+  .app-shell:has(.sidebar-toggle:checked) .app-shell-grid {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .app-shell:has(.sidebar-toggle:checked) .sidebar-nav-item,
+  .app-shell:has(.sidebar-toggle:checked) .sidebar-collapse-trigger {
+    width: 2.5rem;
+    min-width: 2.5rem;
+    justify-content: center;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .app-shell:has(.sidebar-toggle:checked) .sidebar-nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  .app-shell:has(.sidebar-toggle:checked) .sidebar-collapse-close {
+    display: none;
+  }
+
+  .app-shell:has(.sidebar-toggle:checked) .sidebar-collapse-open {
+    display: block;
+  }
+}

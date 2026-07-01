@@ -16,7 +16,38 @@ type SearchRow = {
   document_title: string;
   content: string;
   similarity: number;
+  document_status?: string | null;
 };
+
+async function getIndexedDocumentIds({
+  documentIds,
+  organizationId,
+  supabase
+}: {
+  documentIds: string[];
+  organizationId: string;
+  supabase: SupabaseClient;
+}) {
+  if (documentIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const result = await supabase
+    .from("documents")
+    .select("id,status")
+    .eq("organization_id", organizationId)
+    .in("id", documentIds);
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  return new Set(
+    (result.data ?? [])
+      .filter((document) => document.status === "indexed")
+      .map((document) => document.id as string)
+  );
+}
 
 export async function searchDocumentChunks({
   query,
@@ -41,12 +72,22 @@ export async function searchDocumentChunks({
   }
 
   const rows = result.data as SearchRow[];
+  const rowsWithStatus = rows.filter(
+    (row) => row.document_status === undefined || row.document_status === "indexed"
+  );
+  const indexedDocumentIds = await getIndexedDocumentIds({
+    documentIds: Array.from(new Set(rowsWithStatus.map((row) => row.document_id))),
+    organizationId,
+    supabase
+  });
 
-  return rows.map((row) => ({
-    chunkId: row.chunk_id,
-    documentId: row.document_id,
-    documentTitle: row.document_title,
-    content: row.content,
-    similarity: row.similarity
-  }));
+  return rowsWithStatus
+    .filter((row) => indexedDocumentIds.has(row.document_id))
+    .map((row) => ({
+      chunkId: row.chunk_id,
+      documentId: row.document_id,
+      documentTitle: row.document_title,
+      content: row.content,
+      similarity: row.similarity
+    }));
 }

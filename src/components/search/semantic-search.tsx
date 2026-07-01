@@ -57,7 +57,7 @@ export function SemanticSearch() {
 
       setState({ status: "ready", results: payload.results });
     } catch {
-      setState({ status: "error", message: "Suche konnte nicht ausgefuehrt werden." });
+      setState({ status: "error", message: "Suche konnte nicht ausgeführt werden." });
     }
   }
 
@@ -67,7 +67,7 @@ export function SemanticSearch() {
         <SectionHeader
           eyebrow="Semantische Suche"
           title="Nach Bedeutung suchen"
-          description="Findet Dokumentstellen anhand semantischer Aehnlichkeit, nicht nur anhand identischer Woerter."
+          description="Findet Dokumentstellen anhand semantischer Ähnlichkeit, nicht nur anhand identischer Wörter."
         />
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -107,7 +107,7 @@ export function SemanticSearch() {
 
       {state.status === "idle" ? (
         <section className="rounded-lg border border-border bg-surface p-6 text-sm text-muted-foreground shadow-subtle">
-          Indexiere zuerst analysierte Dokumente ueber die Dokumentdetailseite.
+          Indexiere zuerst analysierte Dokumente über die Dokumentdetailseite.
         </section>
       ) : null}
 
@@ -138,11 +138,11 @@ export function SemanticSearch() {
                         {result.documentTitle}
                       </h3>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Semantische Aehnlichkeit: {formatSimilarity(result.similarity)}
+                        Semantische Ähnlichkeit: {formatSimilarity(result.similarity)}
                       </p>
                     </div>
                     <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                      pgvector
+                      {result.chunkId.startsWith("local-") ? "lokal" : "pgvector"}
                     </span>
                   </div>
                   <p className="mt-4 text-sm leading-7 text-foreground">{result.content}</p>

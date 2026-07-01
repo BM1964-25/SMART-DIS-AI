@@ -49,6 +49,9 @@ MVP:
 - PDF
 - DOCX
 - TXT
+- XLSX
+- XLS
+- CSV
 
 Planned later:
 
@@ -127,20 +130,23 @@ The current iteration adds the first end-to-end upload workflow:
 - `POST /api/documents/upload`
 - `GET /api/documents`
 - Server-side Supabase admin client
+- Local development storage fallback
 - Private Supabase Storage bucket bootstrap
 - `documents` metadata insert
 - Drag & drop multi-file upload
 - Modern document table
 
-Authentication is still intentionally deferred because the requested order starts with upload. The route uses the service role only on the server and stores uploads under the bootstrap organization. The next step should replace the bootstrap organization with the authenticated user's active organization.
+Authentication is still intentionally deferred because the requested order starts with upload. The route uses the service role only on the server and stores uploads under the bootstrap organization when Supabase is configured. Without Supabase environment variables, uploads are stored locally under `.local-data` so development can continue without cloud setup. The next step should replace the bootstrap organization with the authenticated user's active organization.
+
+The local folder connector is a development-only source connector. It registers supported files from a user-provided local path without copying them into `.local-data/uploads`. This keeps the concept separate from upload and prepares the architecture for future connectors such as SharePoint, OneDrive and Teams.
 
 ## Phase 2 Upload Flow
 
-1. User drops or selects up to 10 PDF, DOCX or TXT files.
+1. User drops or selects up to 10 PDF, DOCX, TXT, XLSX, XLS or CSV files.
 2. Client validates file count, type and size for immediate feedback.
 3. `POST /api/documents/upload` validates again on the server.
-4. Each valid file is stored in the private Supabase Storage bucket.
-5. A `documents` row is inserted in PostgreSQL for each stored file.
+4. Each valid file is stored in the active storage backend.
+5. A metadata record is inserted in PostgreSQL or the local JSON store.
 6. If a database insert fails, the stored file is removed again.
 7. The UI refreshes `GET /api/documents` and renders the table.
 

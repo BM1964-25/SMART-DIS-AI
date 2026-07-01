@@ -4,9 +4,12 @@ import {
   BarChart3,
   BrainCircuit,
   CalendarClock,
+  CheckSquare,
   FileSearch,
   FolderInput,
   MessageSquareText,
+  PanelLeftClose,
+  PanelLeftOpen,
   ShieldCheck
 } from "lucide-react";
 import Image from "next/image";
@@ -18,6 +21,7 @@ const navigation = [
   { label: "Dashboard", href: "/", icon: BarChart3 },
   { label: "Upload", href: "/upload", icon: FolderInput },
   { label: "Fristen", href: "/deadlines", icon: CalendarClock },
+  { label: "Aufgaben", href: "/tasks", icon: CheckSquare },
   { label: "Suche", href: "/search", icon: FileSearch },
   { label: "Chat", href: "/chat", icon: MessageSquareText },
   { label: "Analyse", icon: BrainCircuit },
@@ -28,7 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen">
+    <div className="app-shell min-h-screen">
       <header className="bg-white/86 sticky top-0 z-30 border-b border-border backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
@@ -52,37 +56,65 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[240px_1fr] lg:px-8">
+      <input
+        id="sidebar-collapse-control"
+        className="sidebar-toggle sr-only"
+        type="checkbox"
+        aria-label="Menü einklappen oder ausklappen"
+      />
+
+      <div className="app-shell-grid mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[240px_1fr] lg:px-8">
         <aside className="lg:top-22 lg:sticky lg:h-[calc(100vh-6.5rem)]">
-          <nav className="flex gap-2 overflow-x-auto rounded-lg border border-border bg-surface p-2 shadow-subtle lg:flex-col">
+          <nav className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-2 shadow-subtle">
+            <label
+              htmlFor="sidebar-collapse-control"
+              className="sidebar-collapse-trigger inline-flex h-10 min-w-fit cursor-pointer items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              title="Menü einklappen oder ausklappen"
+            >
+              <PanelLeftClose
+                className="sidebar-collapse-close h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+              <PanelLeftOpen
+                className="sidebar-collapse-open hidden h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+              <span className="sidebar-nav-label">Einklappen</span>
+            </label>
             {navigation.map((item) => {
               const className = cn(
-                "inline-flex h-10 min-w-fit items-center gap-2 rounded-md px-3 text-sm font-medium transition",
+                "sidebar-nav-item inline-flex h-10 min-w-fit items-center gap-2 rounded-md px-3 text-sm font-medium transition",
                 "href" in item && pathname === item.href
                   ? "bg-foreground text-white"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               );
-
-              if ("href" in item) {
-                return (
-                  <a key={item.label} href={item.href} className={className}>
-                    <item.icon className="h-4 w-4" aria-hidden="true" />
-                    {item.label}
+              const navigationItem =
+                "href" in item ? (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    className={className}
+                    aria-label={item.label}
+                    title={item.label}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="sidebar-nav-label">{item.label}</span>
                   </a>
+                ) : (
+                  <button
+                    key={item.label}
+                    className={cn(className, "cursor-not-allowed opacity-50 hover:bg-transparent")}
+                    disabled
+                    type="button"
+                    aria-label={item.label}
+                    title={item.label}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="sidebar-nav-label">{item.label}</span>
+                  </button>
                 );
-              }
 
-              return (
-                <button
-                  key={item.label}
-                  className={cn(className, "cursor-not-allowed opacity-50 hover:bg-transparent")}
-                  disabled
-                  type="button"
-                >
-                  <item.icon className="h-4 w-4" aria-hidden="true" />
-                  {item.label}
-                </button>
-              );
+              return navigationItem;
             })}
           </nav>
         </aside>

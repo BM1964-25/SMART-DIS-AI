@@ -33,7 +33,7 @@ Response:
 
 ### `POST /api/documents/upload`
 
-Uploads one or more files to Supabase Storage and creates the corresponding `documents` records. The endpoint accepts `multipart/form-data`.
+Uploads one or more files to the active storage backend and creates the corresponding document records. With full Supabase configuration this uses Supabase Storage and PostgreSQL. Without Supabase configuration local development uses `.local-data`.
 
 Request:
 
@@ -44,7 +44,7 @@ title: string optional, used only for single-file uploads
 
 Validation:
 
-- Allowed MIME types: PDF, DOCX, TXT
+- Allowed file types: PDF, DOCX, TXT, XLSX, XLS, CSV
 - Maximum size: 25 MB
 - Maximum files per request: 10
 - File extension must match MIME type
@@ -93,6 +93,46 @@ Response:
   ]
 }
 ```
+
+### `POST /api/documents/local-folder`
+
+Connects a local folder in development mode. Supported files are registered as linked local sources without uploading or copying them.
+
+Request:
+
+```json
+{
+  "folderPath": "/Users/bernhard/Documents/Projektordner"
+}
+```
+
+Response:
+
+```json
+{
+  "documents": [
+    {
+      "id": "uuid",
+      "title": "Projektliste",
+      "fileName": "projektliste.xlsx",
+      "fileType": "xlsx",
+      "documentType": "other",
+      "sizeBytes": 20480,
+      "status": "linked",
+      "storagePath": "local-folder/document-id/projektliste.xlsx",
+      "createdAt": "2026-06-30T00:00:00.000Z"
+    }
+  ],
+  "skipped": []
+}
+```
+
+Security boundary:
+
+- Local development only by default
+- No background folder watching
+- No upload or file copy
+- Files are referenced by local path in `.local-data/documents.json`
 
 ### `GET /api/documents/{documentId}`
 
@@ -350,6 +390,7 @@ Contract analysis storage is added in `supabase/migrations/004_contract_analysis
 Risk score storage is added in `supabase/migrations/005_risk_analysis_score.sql`.
 Semantic search RPC is added in `supabase/migrations/006_semantic_search.sql`.
 The chat endpoint reuses the semantic search RPC and does not introduce additional storage in Phase 8.
+Spreadsheet upload support is added in `supabase/migrations/007_spreadsheet_uploads.sql`.
 
 Core tables:
 

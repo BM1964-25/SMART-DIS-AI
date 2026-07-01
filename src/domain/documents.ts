@@ -1,4 +1,4 @@
-export const supportedFileTypes = ["pdf", "docx", "txt"] as const;
+export const supportedFileTypes = ["pdf", "docx", "txt", "xlsx", "xls", "csv"] as const;
 
 export type SupportedFileType = (typeof supportedFileTypes)[number];
 
@@ -12,6 +12,12 @@ export const documentTypes = [
   "invoice",
   "minutes",
   "policy",
+  "construction_description",
+  "plan",
+  "defect_report",
+  "cost_list",
+  "project_report",
+  "participant_list",
   "other"
 ] as const;
 
@@ -23,6 +29,12 @@ export const documentTypeLabels: Record<DocumentType, string> = {
   invoice: "Rechnungen",
   minutes: "Protokolle",
   policy: "Richtlinien",
+  construction_description: "Baubeschreibungen",
+  plan: "Pläne",
+  defect_report: "Mängelberichte",
+  cost_list: "Kostenlisten",
+  project_report: "Berichte",
+  participant_list: "Projektbeteiligte",
   other: "Sonstige"
 };
 

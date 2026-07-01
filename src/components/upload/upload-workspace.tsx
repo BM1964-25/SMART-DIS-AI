@@ -10,11 +10,24 @@ type DocumentsState =
   | { status: "ready"; documents: DocumentRecord[]; message?: string }
   | { status: "error"; documents: DocumentRecord[]; message: string };
 
-export function UploadWorkspace() {
-  const [documentsState, setDocumentsState] = useState<DocumentsState>({
-    status: "loading",
-    documents: []
-  });
+type UploadWorkspaceProps = {
+  initialDocuments: DocumentRecord[];
+  initialErrorMessage?: string;
+};
+
+export function UploadWorkspace({ initialDocuments, initialErrorMessage }: UploadWorkspaceProps) {
+  const [documentsState, setDocumentsState] = useState<DocumentsState>(
+    initialErrorMessage
+      ? {
+          status: "error",
+          documents: initialDocuments,
+          message: initialErrorMessage
+        }
+      : {
+          status: "ready",
+          documents: initialDocuments
+        }
+  );
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -110,7 +123,6 @@ export function UploadWorkspace() {
         documents={documentsState.documents}
         isLoading={documentsState.status === "loading"}
         errorMessage={documentsState.status === "error" ? documentsState.message : undefined}
-        onRefresh={refreshDocuments}
       />
     </section>
   );

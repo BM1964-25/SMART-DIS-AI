@@ -2,6 +2,7 @@
 .env
 .env*.local
 .next
+.local-data
 node_modules
 dist
 coverage

@@ -30,6 +30,8 @@
 │   │   │   │   │   └── route.ts
 │   │   │   │   ├── upload
 │   │   │   │   │   └── route.ts
+│   │   │   │   ├── local-folder
+│   │   │   │   │   └── route.ts
 │   │   │   │   └── route.ts
 │   │   │   ├── health
 │   │   │   │   └── route.ts
@@ -86,6 +88,8 @@
 │       │   └── text-extraction.ts
 │       ├── search
 │       │   └── semantic-search.ts
+│       ├── documents
+│       │   └── local-document-store.ts
 │       ├── supabase
 │       │   └── admin.ts
 │       ├── cn.ts
@@ -98,7 +102,8 @@
 │       ├── 003_document_analysis.sql
 │       ├── 004_contract_analysis.sql
 │       ├── 005_risk_analysis_score.sql
-│       └── 006_semantic_search.sql
+│       ├── 006_semantic_search.sql
+│       └── 007_spreadsheet_uploads.sql
 ├── .env.example
 ├── package.json
 ├── tailwind.config.ts

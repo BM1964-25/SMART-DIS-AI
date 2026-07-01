@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
 import { mapDocumentRow, type DocumentRecord } from "@/domain/document-record";
 import {
+  allowedFileExtensionText,
   allowedMimeTypes,
   maxFilesPerUpload,
-  maxUploadSizeInBytes,
-  type AllowedMimeType
+  maxUploadSizeInBytes
 } from "@/domain/security";
-import { getServerEnv } from "@/lib/server-env";
+import { saveLocalUploadedDocument } from "@/lib/documents/local-document-store";
+import { tryGetServerEnv } from "@/lib/server-env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
-
-const fileExtensionByMimeType = allowedMimeTypes;
 
 type UploadSuccessResponse = {
   documents: DocumentRecord[];
@@ -53,8 +52,37 @@ function getSafeTitle(
   return fallbackFileName.replace(/\.[^.]+$/, "").slice(0, 160);
 }
 
-function isAllowedMimeType(mimeType: string): mimeType is AllowedMimeType {
+function isAllowedMimeType(mimeType: string): mimeType is keyof typeof allowedMimeTypes {
   return mimeType in allowedMimeTypes;
+}
+
+function getFileExtension(fileName: string) {
+  return fileName.toLowerCase().split(".").pop() ?? "";
+}
+
+function getValidatedFileType(uploadedFile: File): string | null {
+  const safeFileName = sanitizeFileName(uploadedFile.name);
+  const extension = getFileExtension(safeFileName);
+
+  if (
+    !Object.values(allowedMimeTypes).includes(
+      extension as (typeof allowedMimeTypes)[keyof typeof allowedMimeTypes]
+    )
+  ) {
+    return null;
+  }
+
+  if (!uploadedFile.type) {
+    return extension;
+  }
+
+  if (!isAllowedMimeType(uploadedFile.type)) {
+    return null;
+  }
+
+  const expectedExtension = allowedMimeTypes[uploadedFile.type];
+
+  return expectedExtension === extension ? extension : null;
 }
 
 function validateUploadedFile(uploadedFile: File): string | null {
@@ -63,32 +91,18 @@ function validateUploadedFile(uploadedFile: File): string | null {
   }
 
   if (uploadedFile.size > maxUploadSizeInBytes) {
-    return "Die Datei ist groesser als 25 MB.";
+    return "Die Datei ist größer als 25 MB.";
   }
 
-  if (!isAllowedMimeType(uploadedFile.type)) {
-    return "Nur PDF, DOCX und TXT Dateien sind im MVP erlaubt.";
-  }
-
-  const fileType = fileExtensionByMimeType[uploadedFile.type];
-  const safeFileName = sanitizeFileName(uploadedFile.name);
-
-  if (!safeFileName.toLowerCase().endsWith(`.${fileType}`)) {
-    return `Dateiendung und MIME-Type passen nicht zusammen. Erwartet: .${fileType}`;
+  if (!getValidatedFileType(uploadedFile)) {
+    return `Nur ${allowedFileExtensionText} Dateien sind erlaubt. Dateiendung und MIME-Type müssen zusammenpassen.`;
   }
 
   return null;
 }
 
 export async function POST(request: Request) {
-  let env;
-
-  try {
-    env = getServerEnv();
-  } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Supabase is not configured.", 503);
-  }
-
+  const env = tryGetServerEnv();
   const formData = await request.formData();
   const uploadedFiles = formData
     .getAll("files")
@@ -103,14 +117,14 @@ export async function POST(request: Request) {
   }
 
   if (uploadedFiles.length === 0) {
-    return jsonError("Bitte waehle mindestens eine Datei aus.", 400);
+    return jsonError("Bitte wähle mindestens eine Datei aus.", 400);
   }
 
   if (uploadedFiles.length > maxFilesPerUpload) {
     return jsonError(`Maximal ${maxFilesPerUpload} Dateien pro Upload sind erlaubt.`, 400);
   }
 
-  const supabase = createSupabaseAdminClient();
+  const supabase = env ? createSupabaseAdminClient() : null;
   const uploadedDocuments: DocumentRecord[] = [];
   const failed: UploadFailure[] = [];
 
@@ -122,11 +136,33 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const mimeType = uploadedFile.type as AllowedMimeType;
-    const fileType = fileExtensionByMimeType[mimeType];
+    const fileType = getValidatedFileType(uploadedFile);
+
+    if (!fileType) {
+      failed.push({ fileName: uploadedFile.name, error: "Dateityp konnte nicht bestimmt werden." });
+      continue;
+    }
+
+    const mimeType = uploadedFile.type || "application/octet-stream";
     const safeFileName = sanitizeFileName(uploadedFile.name);
     const documentId = crypto.randomUUID();
     const title = getSafeTitle(formData.get("title"), safeFileName, uploadedFiles.length);
+
+    if (!env || !supabase) {
+      const document = await saveLocalUploadedDocument({
+        documentId,
+        title,
+        safeFileName,
+        fileType,
+        mimeType,
+        sizeBytes: uploadedFile.size,
+        file: uploadedFile
+      });
+
+      uploadedDocuments.push(document);
+      continue;
+    }
+
     const storagePath = `${env.BUILTSMART_BOOTSTRAP_ORGANIZATION_ID}/${documentId}/${safeFileName}`;
 
     const uploadResult = await supabase.storage

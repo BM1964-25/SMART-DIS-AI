@@ -20,6 +20,14 @@ export function getServerEnv(): ServerEnv {
   return Object.fromEntries(entries) as ServerEnv;
 }
 
+export function tryGetServerEnv(): ServerEnv | null {
+  try {
+    return getServerEnv();
+  } catch {
+    return null;
+  }
+}
+
 export function getOpenAiApiKey() {
   const apiKey = process.env.OPENAI_API_KEY;
 
