@@ -86,6 +86,7 @@ npm run build
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [API](docs/API.md)
+- [Vercel Deployment](docs/VERCEL_DEPLOYMENT.md)
 
 ## Supabase
 
